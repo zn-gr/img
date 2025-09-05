@@ -1,0 +1,13 @@
+如果你是在其他地方下载的请谨防后门
+
+高德key获取链接:
+https://console.amap.com/
+
+将申请到的key去文件process_location.php文件第6行，admin.php第35行替换自己的key
+管理员账号密码在login.php中第16行，第17行替换
+
+需要先登录支付宝网页版，才能进行个人认证
+https://auth.alipay.com/login/index.htm
+
+有能力者能不能把它变成用户登录，分销之类的！！！
+资源共享！

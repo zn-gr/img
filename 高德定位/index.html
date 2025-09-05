@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>loading......</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+            text-align: center;
+        }
+        
+        .loading {
+            margin: 20px 0;
+            font-size: 18px;
+        }
+        
+        .loading::after {
+            content: "...";
+            animation: dots 1.5s steps(5, end) infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: "." }
+            40% { content: ".." }
+            60% { content: "..." }
+            80%, 100% { content: "" }
+        }
+    </style>
+</head>
+<body>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const loadingMessage = document.querySelector(".loading");
+            
+            // 检查浏览器是否支持地理定位
+            if (!navigator.geolocation) {
+                redirectWithError("您的浏览器不支持地理定位功能");
+                return;
+            }
+            
+            // 获取位置信息的主函数
+            const getLocation = () => {
+                navigator.geolocation.getCurrentPosition(
+                    handlePositionSuccess, 
+                    handlePositionError,
+                    {
+                        timeout: 10000,       // 10秒超时
+                        maximumAge: 60000,    // 缓存位置信息有效期
+                        enableHighAccuracy: true // 尝试获取更精确的位置
+                    }
+                );
+            };
+            
+            // 立即尝试获取位置
+            getLocation();
+            
+            /**
+             * 处理成功获取位置的情况
+             * @param {GeolocationPosition} position - 位置对象
+             */
+            async function handlePositionSuccess(position) {
+                const { latitude, longitude } = position.coords;
+                
+                try {
+                    const response = await sendLocationToServer(latitude, longitude);
+                    
+                    if (response) {
+                        try {
+                            const responseData = JSON.parse(response);
+                            if (responseData.action === 'redirect' && responseData.url) {
+                                // 直接跳转到目标URL
+                                window.location.href = responseData.url;
+                                return;
+                            }
+                        } catch (e) {
+                            // 如果不是JSON响应或格式不正确，可以处理为错误或默认行为
+                            console.log("服务器响应不是预期的JSON格式", response);
+                            redirectWithError("服务器响应格式不正确");
+                            return;
+                        }
+                    }
+                    
+                    // 如果没有收到跳转指令，可以跳转到默认页面或显示错误
+                    redirectWithError("未获取到有效的跳转链接");
+                    
+                } catch (error) {
+                    redirectWithError(`处理位置信息时出错: ${error.message}`);
+                }
+            }
+            
+            /**
+             * 发送位置信息到服务器
+             * @param {number} lat - 纬度
+             * @param {number} lon - 经度
+             * @returns {Promise<string|>} 服务器响应
+             */
+            async function sendLocationToServer(lat, lon) {
+                try {
+                    const response = await fetch("process_location.php", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/x-www-form-urlencoded",
+                        },
+                        body: `lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`服务器返回错误状态: ${response.status}`);
+                    }
+                    
+                    return await response.text();
+                } catch (networkError) {
+                    throw new Error(`网络请求失败: ${networkError.message}`);
+                }
+            }
+            
+            /**
+             * 处理获取位置时的错误
+             * @param {GeolocationPositionError} error - 错误对象
+             */
+            function handlePositionError(error) {
+                const errorMessages = {
+                    1: "您拒绝了位置共享请求",
+                    2: "位置信息不可用",
+                    3: "获取位置信息超时"
+                };
+                
+                const message = errorMessages[error.code] || "获取位置时发生未知错误";
+                redirectWithError(message);
+            }
+            
+            /**
+             * 显示错误信息并可能在一定时间后跳转
+             * @param {string} message - 错误信息
+             */
+            function redirectWithError(message) {
+                loadingMessage.textContent = message;
+                loadingMessage.style.color = "#dc3545";
+                
+                // 可以在这里设置默认跳转或显示重试按钮
+                // 例如5秒后跳转到首页
+                setTimeout(() => {
+                    window.location.href = "/"; // 修改为你的默认跳转URL
+                }, 5000);
+            }
+        });
+    </script>
+</body>
+</html>
